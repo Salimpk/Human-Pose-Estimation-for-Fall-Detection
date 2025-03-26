@@ -3,170 +3,1526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Fall Detection System</title>
-    
-    <!-- MediaPipe & FontAwesome -->
+    <title>Advanced Fall Detection System</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    
-    <!-- Styles -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/recordrtc@5.6.2/RecordRTC.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #4361ee;
             --success: #4cc9f0;
             --danger: #f72585;
+            --warning: #f8961e;
             --dark: #212529;
             --light: #f8f9fa;
-            --background: #f5f7fa;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; background-color: var(--background); color: #333; min-height: 100vh; text-align: center; }
         
-        .container { max-width: 1000px; margin: auto; padding: 20px; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
         
-        h1 { color: var(--primary); margin-bottom: 10px; }
-        .subtitle { font-size: 1.1rem; color: #555; margin-bottom: 20px; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            background: linear-gradient(135deg, var(--primary), #3a0ca3);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .video-section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
         
         .video-container {
-            position: relative; display: flex; justify-content: center; align-items: center;
-            background-color: #000; border-radius: 8px; overflow: hidden;
+            position: relative;
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #000;
         }
-
-        video, canvas { width: 100%; border-radius: 8px; }
         
-        .controls { margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
+        #videoElement {
+            width: 100%;
+            display: block;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
         
         .btn {
-            padding: 10px 20px; border: none; border-radius: 5px; font-size: 1rem;
-            cursor: pointer; display: flex; align-items: center; gap: 8px;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
         }
         
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #3a56e8; }
-        .btn-outline { border: 2px solid var(--primary); color: var(--primary); background: none; }
-        .btn-outline:hover { background: rgba(67, 97, 238, 0.1); }
-
-        .status-box {
-            margin-top: 20px; padding: 15px; border-radius: 8px;
-            font-size: 1.2rem; font-weight: bold;
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
         }
-
-        .safe { background: rgba(76, 201, 240, 0.1); border: 2px solid var(--success); }
-        .danger { background: rgba(247, 37, 133, 0.1); border: 2px solid var(--danger); animation: pulse 1.5s infinite; }
-
+        
+        .btn-primary:hover {
+            background-color: #3a56e8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn-outline:hover {
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #e5177b;
+        }
+        
+        .status-section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-card {
+            text-align: center;
+            padding: 30px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-safe {
+            background-color: rgba(76, 201, 240, 0.1);
+            border: 2px solid var(--success);
+        }
+        
+        .status-danger {
+            background-color: rgba(247, 37, 133, 0.1);
+            border: 2px solid var(--danger);
+            animation: pulse 1.5s infinite;
+        }
+        
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(247, 37, 133, 0); }
             100% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0); }
         }
-
-        .stats { display: flex; justify-content: space-around; margin-top: 15px; }
         
-        .footer { margin-top: 30px; font-size: 0.9rem; color: #666; }
+        .status-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .safe-icon {
+            color: var(--success);
+        }
+        
+        .danger-icon {
+            color: var(--danger);
+        }
+        
+        .status-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .status-message {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .history-section {
+            margin-top: 30px;
+        }
+        
+        .history-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .history-item-danger {
+            border-left: 4px solid var(--danger);
+        }
+        
+        .history-item-safe {
+            border-left: 4px solid var(--success);
+        }
+        
+        .history-time {
+            font-weight: bold;
+        }
+        
+        .history-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-badge-safe {
+            background-color: rgba(76, 201, 240, 0.2);
+            color: var(--success);
+        }
+        
+        .status-badge-danger {
+            background-color: rgba(247, 37, 133, 0.2);
+            color: var(--danger);
+        }
+        
+        .history-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn:hover {
+            color: var(--primary);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            margin: 20px auto;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Angle visualization */
+        .angle-display {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .angle-meter {
+            height: 20px;
+            background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+            border-radius: 10px;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .angle-indicator {
+            position: absolute;
+            top: -5px;
+            width: 2px;
+            height: 30px;
+            background-color: black;
+        }
+        
+        .angle-labels {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        /* Settings panel */
+        .settings-panel {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .settings-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        input[type="text"], input[type="email"], input[type="tel"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .range-value {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        /* Notification test */
+        .notification-test {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        /* Video recording indicator */
+        .recording-indicator {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: var(--danger);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 10;
+        }
+        
+        /* Angle charts */
+        .angle-chart-container {
+            height: 200px;
+            margin-top: 20px;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Smart Fall Detection System</h1>
-        <p class="subtitle">AI-powered real-time fall detection</p>
-
-        <div class="video-container">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="canvas"></canvas>
+        <header>
+            <h1>Advanced Fall Detection System</h1>
+            <p class="subtitle">AI-powered real-time monitoring with multiple angle analysis</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="video-section">
+                <h2><i class="fas fa-video"></i> Live Feed</h2>
+                <div class="video-container">
+                    <div class="recording-indicator" id="recordingIndicator">
+                        <i class="fas fa-circle"></i> Recording
+                    </div>
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <div class="angle-display">
+                    <h3>Body Angles</h3>
+                    <div class="angle-meter" id="trunkAngleMeter">
+                        <div class="angle-indicator" id="trunkAngleIndicator"></div>
+                    </div>
+                    <div class="angle-labels">
+                        <span>0° (Upright)</span>
+                        <span>45°</span>
+                        <span>90° (Horizontal)</span>
+                    </div>
+                    
+                    <div class="angle-chart-container">
+                        <canvas id="angleChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="controls">
+                    <button id="startButton" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Start Monitoring
+                    </button>
+                    <button id="settingsButton" class="btn btn-outline">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                    <button id="testNotificationButton" class="btn btn-outline">
+                        <i class="fas fa-bell"></i> Test Alert
+                    </button>
+                </div>
+                
+                <div class="spinner" id="loadingSpinner"></div>
+            </div>
+            
+            <div class="status-section">
+                <h2><i class="fas fa-heartbeat"></i> Monitoring Status</h2>
+                
+                <div id="statusCard" class="status-card status-safe">
+                    <div class="status-icon safe-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="status-title">Status: Normal</h3>
+                    <p class="status-message">No falls detected</p>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="uptimeStat">00:00:00</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="fallCount">0</div>
+                        <div class="stat-label">Fall Events</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="recordingCount">0</div>
+                        <div class="stat-label">Recordings</div>
+                    </div>
+                </div>
+                
+                <div class="history-section">
+                    <h3 class="history-title">
+                        <i class="fas fa-history"></i> Event History
+                        <button id="viewRecordingsBtn" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.9rem;">
+                            <i class="fas fa-film"></i> View Recordings
+                        </button>
+                    </h3>
+                    <ul class="history-list" id="eventHistory">
+                        <li class="history-item history-item-safe">
+                            <span class="history-time">Today, 10:30 AM</span>
+                            <span class="history-status status-badge-safe">Normal</span>
+                            <div class="history-actions">
+                                <button class="action-btn" title="View details"><i class="fas fa-info-circle"></i></button>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-
-        <div class="controls">
-            <button id="startButton" class="btn btn-primary">
-                <i class="fas fa-play"></i> Start Monitoring
-            </button>
-            <button id="helpButton" class="btn btn-outline">
-                <i class="fas fa-question-circle"></i> Help
-            </button>
+        
+        <!-- Settings Panel -->
+        <div class="settings-panel" id="settingsPanel" style="display: none;">
+            <h3 class="settings-title"><i class="fas fa-cog"></i> System Settings</h3>
+            
+            <div class="form-group">
+                <label for="trunkAngleThreshold">Trunk Angle Threshold: <span id="trunkAngleValue" class="range-value">45</span>°</label>
+                <input type="range" id="trunkAngleThreshold" min="30" max="80" value="45" step="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="kneeAngleThreshold">Knee Angle Threshold: <span id="kneeAngleValue" class="range-value">120</span>°</label>
+                <input type="range" id="kneeAngleThreshold" min="90" max="180" value="120" step="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="velocityThreshold">Velocity Threshold: <span id="velocityValue" class="range-value">0.3</span></label>
+                <input type="range" id="velocityThreshold" min="0.1" max="1" value="0.3" step="0.05">
+            </div>
+            
+            <div class="form-group">
+                <label for="groundProximity">Ground Proximity Threshold: <span id="groundProximityValue" class="range-value">0.8</span></label>
+                <input type="range" id="groundProximity" min="0.5" max="1" value="0.8" step="0.05">
+            </div>
+            
+            <h4 style="margin-top: 20px;">Notification Settings</h4>
+            
+            <div class="form-group">
+                <label for="adminEmail">Admin Email:</label>
+                <input type="email" id="adminEmail" placeholder="admin@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="adminPhone">Admin Phone (for SMS):</label>
+                <input type="tel" id="adminPhone" placeholder="+1234567890">
+            </div>
+            
+            <div class="notification-test">
+                <button id="saveSettingsBtn" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+                <button id="testNotificationBtn" class="btn btn-outline">
+                    <i class="fas fa-bell"></i> Test Notification
+                </button>
+            </div>
         </div>
-
-        <div id="statusBox" class="status-box safe">
-            <span id="statusText">No falls detected</span>
+        
+        <!-- Recordings Modal -->
+        <div class="modal" id="recordingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i class="fas fa-film"></i> Recorded Events</h3>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div id="recordingsList">
+                    <!-- Recordings will be listed here -->
+                    <p>No recordings available yet.</p>
+                </div>
+            </div>
         </div>
-
-        <div class="stats">
-            <div><strong>Uptime:</strong> <span id="uptime">00:00:00</span></div>
-            <div><strong>Falls Detected:</strong> <span id="fallCount">0</span></div>
+        
+        <!-- Event Details Modal -->
+        <div class="modal" id="eventDetailsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i class="fas fa-info-circle"></i> Event Details</h3>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div id="eventDetailsContent">
+                    <!-- Event details will be shown here -->
+                </div>
+            </div>
         </div>
-
-        <p class="footer">&copy; 2025 Smart AI System</p>
+        
+        <footer>
+            <p>Advanced Fall Detection System &copy; 2023 | AI-Powered Safety Monitoring</p>
+        </footer>
     </div>
 
     <script>
-        const video = document.getElementById("video");
-        const canvas = document.getElementById("canvas");
-        const ctx = canvas.getContext("2d");
-
-        const startButton = document.getElementById("startButton");
-        const statusBox = document.getElementById("statusBox");
-        const statusText = document.getElementById("statusText");
-        const uptimeElement = document.getElementById("uptime");
-        const fallCountElement = document.getElementById("fallCount");
-
+        // Elements
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const statusCard = document.getElementById('statusCard');
+        const fallCountElement = document.getElementById('fallCount');
+        const uptimeStatElement = document.getElementById('uptimeStat');
+        const recordingCountElement = document.getElementById('recordingCount');
+        const eventHistoryElement = document.getElementById('eventHistory');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const settingsButton = document.getElementById('settingsButton');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const testNotificationBtn = document.getElementById('testNotificationBtn');
+        const recordingsModal = document.getElementById('recordingsModal');
+        const viewRecordingsBtn = document.getElementById('viewRecordingsBtn');
+        const closeModalButtons = document.querySelectorAll('.close-modal');
+        const eventDetailsModal = document.getElementById('eventDetailsModal');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const testNotificationButton = document.getElementById('testNotificationButton');
+        
+        // Angle visualization elements
+        const trunkAngleMeter = document.getElementById('trunkAngleMeter');
+        const trunkAngleIndicator = document.getElementById('trunkAngleIndicator');
+        
+        // Settings elements
+        const trunkAngleThreshold = document.getElementById('trunkAngleThreshold');
+        const kneeAngleThreshold = document.getElementById('kneeAngleThreshold');
+        const velocityThreshold = document.getElementById('velocityThreshold');
+        const groundProximity = document.getElementById('groundProximity');
+        const trunkAngleValue = document.getElementById('trunkAngleValue');
+        const kneeAngleValue = document.getElementById('kneeAngleValue');
+        const velocityValue = document.getElementById('velocityValue');
+        const groundProximityValue = document.getElementById('groundProximityValue');
+        const adminEmail = document.getElementById('adminEmail');
+        const adminPhone = document.getElementById('adminPhone');
+        
+        // Variables
+        let pose = null;
+        let fallDetectionActive = false;
+        let animationFrameId = null;
         let fallCount = 0;
+        let recordingCount = 0;
         let startTime = null;
         let uptimeInterval = null;
-
+        let lastFallTime = null;
+        let isFallState = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let angleChart = null;
+        let angleHistory = [];
+        const maxHistoryPoints = 50;
+        
+        // Configuration
+        let config = {
+            trunkAngleThreshold: 45,
+            kneeAngleThreshold: 120,
+            velocityThreshold: 0.3,
+            groundProximity: 0.8,
+            adminEmail: '',
+            adminPhone: '',
+            recordDuration: 10 // seconds
+        };
+        
+        // Load saved settings
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('fallDetectionSettings');
+            if (savedSettings) {
+                config = JSON.parse(savedSettings);
+                
+                // Update UI with saved settings
+                trunkAngleThreshold.value = config.trunkAngleThreshold;
+                kneeAngleThreshold.value = config.kneeAngleThreshold;
+                velocityThreshold.value = config.velocityThreshold;
+                groundProximity.value = config.groundProximity;
+                adminEmail.value = config.adminEmail;
+                adminPhone.value = config.adminPhone;
+                
+                updateRangeValues();
+            }
+        }
+        
+        // Save settings
+        function saveSettings() {
+            config.trunkAngleThreshold = parseInt(trunkAngleThreshold.value);
+            config.kneeAngleThreshold = parseInt(kneeAngleThreshold.value);
+            config.velocityThreshold = parseFloat(velocityThreshold.value);
+            config.groundProximity = parseFloat(groundProximity.value);
+            config.adminEmail = adminEmail.value;
+            config.adminPhone = adminPhone.value;
+            
+            localStorage.setItem('fallDetectionSettings', JSON.stringify(config));
+            
+            alert('Settings saved successfully!');
+        }
+        
+        // Update range value displays
+        function updateRangeValues() {
+            trunkAngleValue.textContent = trunkAngleThreshold.value;
+            kneeAngleValue.textContent = kneeAngleThreshold.value;
+            velocityValue.textContent = velocityThreshold.value;
+            groundProximityValue.textContent = groundProximity.value;
+        }
+        
+        // Initialize camera
         async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-
-            return new Promise(resolve => {
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    resolve();
-                };
+            try {
+                loadingSpinner.style.display = 'block';
+                startButton.disabled = true;
+                startButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing...';
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720, facingMode: "environment" }
+                });
+                
+                videoElement.srcObject = stream;
+                
+                return new Promise(resolve => {
+                    videoElement.onloadedmetadata = () => {
+                        canvasElement.width = videoElement.videoWidth;
+                        canvasElement.height = videoElement.videoHeight;
+                        loadingSpinner.style.display = 'none';
+                        startButton.disabled = false;
+                        startButton.innerHTML = '<i class="fas fa-stop"></i> Stop Monitoring';
+                        resolve(videoElement);
+                    };
+                });
+            } catch (error) {
+                console.error("Error accessing camera:", error);
+                loadingSpinner.style.display = 'none';
+                startButton.disabled = false;
+                startButton.innerHTML = '<i class="fas fa-play"></i> Start Monitoring';
+                alert("Could not access camera. Please check permissions.");
+                throw error;
+            }
+        }
+        
+        // Initialize angle chart
+        function initAngleChart() {
+            const ctx = document.getElementById('angleChart').getContext('2d');
+            angleChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(maxHistoryPoints).fill(''),
+                    datasets: [
+                        {
+                            label: 'Trunk Angle',
+                            data: [],
+                            borderColor: '#4361ee',
+                            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Knee Angle',
+                            data: [],
+                            borderColor: '#f72585',
+                            backgroundColor: 'rgba(247, 37, 133, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 180,
+                            title: {
+                                display: true,
+                                text: 'Angle (degrees)'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
             });
         }
-
-        function calculateBodyAngle(landmarks) {
+        
+        // Update angle chart
+        function updateAngleChart(trunkAngle, kneeAngle) {
+            angleHistory.push({ trunkAngle, kneeAngle });
+            
+            if (angleHistory.length > maxHistoryPoints) {
+                angleHistory.shift();
+            }
+            
+            angleChart.data.datasets[0].data = angleHistory.map(item => item.trunkAngle);
+            angleChart.data.datasets[1].data = angleHistory.map(item => item.kneeAngle);
+            angleChart.update();
+        }
+        
+        // Calculate angles between body parts
+        function calculateAngles(landmarks) {
+            // Trunk angle (shoulders to hips)
             const leftShoulder = landmarks[11];
             const rightShoulder = landmarks[12];
             const leftHip = landmarks[23];
             const rightHip = landmarks[24];
-
-            const shoulderMid = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
-            const hipMid = { x: (leftHip.x + rightHip.x) / 2, y: (leftHip.y + rightHip.y) / 2 };
-
-            return Math.atan2(hipMid.y - shoulderMid.y, hipMid.x - shoulderMid.x) * (180 / Math.PI);
+            
+            // Midpoints
+            const shoulderMid = {
+                x: (leftShoulder.x + rightShoulder.x) / 2,
+                y: (leftShoulder.y + rightShoulder.y) / 2
+            };
+            
+            const hipMid = {
+                x: (leftHip.x + rightHip.x) / 2,
+                y: (leftHip.y + rightHip.y) / 2
+            };
+            
+            // Calculate trunk angle (0° when standing straight)
+            const trunkDx = shoulderMid.x - hipMid.x;
+            const trunkDy = shoulderMid.y - hipMid.y;
+            const trunkAngle = Math.abs(Math.atan2(trunkDy, trunkDx) * (180 / Math.PI) - 90);
+            
+            // Knee angle (left leg)
+            const leftKnee = landmarks[25];
+            const leftAnkle = landmarks[27];
+            
+            // Vectors for thigh and shin
+            const thighDx = leftHip.x - leftKnee.x;
+            const thighDy = leftHip.y - leftKnee.y;
+            
+            const shinDx = leftAnkle.x - leftKnee.x;
+            const shinDy = leftAnkle.y - leftKnee.y;
+            
+            // Calculate angle between thigh and shin
+            const dotProduct = thighDx * shinDx + thighDy * shinDy;
+            const thighMagnitude = Math.sqrt(thighDx * thighDx + thighDy * thighDy);
+            const shinMagnitude = Math.sqrt(shinDx * shinDx + shinDy * shinDy);
+            
+            let kneeAngle = Math.acos(dotProduct / (thighMagnitude * shinMagnitude)) * (180 / Math.PI);
+            
+            // Ensure angle is between 0 and 180
+            kneeAngle = Math.min(180, Math.max(0, kneeAngle));
+            
+            return {
+                trunkAngle: Math.abs(trunkAngle),
+                kneeAngle: kneeAngle
+            };
         }
-
-        function updateUptime() {
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            uptimeElement.textContent = new Date(elapsed * 1000).toISOString().substr(11, 8);
+        
+        // Calculate velocity of body movement
+        function calculateVelocity(landmarks, prevLandmarks, timestamp, prevTimestamp) {
+            if (!prevLandmarks || !prevTimestamp) return 0;
+            
+            // Use nose position for velocity calculation
+            const currentNose = landmarks[0];
+            const prevNose = prevLandmarks[0];
+            
+            const dx = currentNose.x - prevNose.x;
+            const dy = currentNose.y - prevNose.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            const timeDiff = (timestamp - prevTimestamp) / 1000; // in seconds
+            if (timeDiff === 0) return 0;
+            
+            return distance / timeDiff;
         }
-
-        function detectFall(angle) {
-            if (Math.abs(angle) > 50) {
-                statusBox.className = "status-box danger";
-                statusText.textContent = "Fall detected!";
-                fallCount++;
-                fallCountElement.textContent = fallCount;
-            } else {
-                statusBox.className = "status-box safe";
-                statusText.textContent = "No falls detected";
+        
+        // Improved fall detection with multiple criteria
+        function detectFall(landmarks, prevLandmarks, timestamp, prevTimestamp) {
+            // Calculate angles
+            const angles = calculateAngles(landmarks);
+            const trunkAngle = angles.trunkAngle;
+            const kneeAngle = angles.kneeAngle;
+            
+            // Calculate velocity
+            const velocity = calculateVelocity(landmarks, prevLandmarks, timestamp, prevTimestamp);
+            
+            // Check head/hip position (ground proximity)
+            const headY = landmarks[0].y;
+            const hipY = (landmarks[23].y + landmarks[24].y) / 2;
+            
+            // Update angle visualization
+            updateAngleVisualization(trunkAngle);
+            updateAngleChart(trunkAngle, kneeAngle);
+            
+            // Fall detection criteria
+            const trunkAngleExceeded = trunkAngle > config.trunkAngleThreshold;
+            const kneeAngleExceeded = kneeAngle < config.kneeAngleThreshold;
+            const velocityExceeded = velocity > config.velocityThreshold;
+            const groundProximityExceeded = headY > config.groundProximity || hipY > config.groundProximity;
+            
+            // Combined fall detection logic
+            return (trunkAngleExceeded && kneeAngleExceeded) || 
+                   (trunkAngleExceeded && velocityExceeded) ||
+                   (trunkAngleExceeded && groundProximityExceeded) ||
+                   (velocityExceeded && groundProximityExceeded);
+        }
+        
+        // Update angle visualization meter
+        function updateAngleVisualization(angle) {
+            // Normalize angle to 0-90 for the meter (0° to 90° scale)
+            const normalizedAngle = Math.min(90, angle);
+            const percentage = (normalizedAngle / 90) * 100;
+            
+            trunkAngleIndicator.style.left = `${percentage}%`;
+        }
+        
+        // Start video recording
+        function startRecording() {
+            if (isRecording) return;
+            
+            recordedChunks = [];
+            const stream = canvasElement.captureStream(30);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                saveRecording(blob);
+                isRecording = false;
+                recordingIndicator.style.display = 'none';
+            };
+            
+            mediaRecorder.start();
+            isRecording = true;
+            recordingIndicator.style.display = 'block';
+            
+            // Stop recording after configured duration
+            setTimeout(() => {
+                if (isRecording) {
+                    mediaRecorder.stop();
+                }
+            }, config.recordDuration * 1000);
+        }
+        
+        // Save recording to "database" (localStorage for demo)
+        function saveRecording(blob) {
+            recordingCount++;
+            recordingCountElement.textContent = recordingCount;
+            
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result;
+                const recording = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    data: base64data,
+                    type: 'fall'
+                };
+                
+                // Save to localStorage (in a real app, you'd send to a server)
+                const recordings = JSON.parse(localStorage.getItem('fallRecordings') || []);
+                recordings.unshift(recording);
+                localStorage.setItem('fallRecordings', JSON.stringify(recordings));
+            };
+        }
+        
+        // Load recordings from "database"
+        function loadRecordings() {
+            const recordingsList = document.getElementById('recordingsList');
+            const recordings = JSON.parse(localStorage.getItem('fallRecordings') || []);
+            
+            if (recordings.length === 0) {
+                recordingsList.innerHTML = '<p>No recordings available yet.</p>';
+                return;
+            }
+            
+            recordingsList.innerHTML = '';
+            
+            recordings.forEach(recording => {
+                const recordingElement = document.createElement('div');
+                recordingElement.className = 'history-item history-item-danger';
+                recordingElement.style.marginBottom = '10px';
+                recordingElement.style.padding = '15px';
+                
+                const date = new Date(recording.timestamp);
+                const timeString = date.toLocaleString();
+                
+                recordingElement.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>Fall Detected</strong>
+                            <div style="font-size: 0.9rem; color: #6c757d;">${timeString}</div>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline play-recording" data-id="${recording.id}" style="padding: 5px 10px; font-size: 0.9rem;">
+                                <i class="fas fa-play"></i> Play
+                            </button>
+                            <button class="btn btn-outline download-recording" data-id="${recording.id}" style="padding: 5px 10px; font-size: 0.9rem; margin-left: 5px;">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                recordingsList.appendChild(recordingElement);
+            });
+            
+            // Add event listeners to play buttons
+            document.querySelectorAll('.play-recording').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    playRecording(id);
+                });
+            });
+            
+            // Add event listeners to download buttons
+            document.querySelectorAll('.download-recording').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    downloadRecording(id);
+                });
+            });
+        }
+        
+        // Play recording
+        function playRecording(id) {
+            const recordings = JSON.parse(localStorage.getItem('fallRecordings') || []);
+            const recording = recordings.find(r => r.id.toString() === id);
+            
+            if (!recording) return;
+            
+            const videoPlayer = document.createElement('video');
+            videoPlayer.controls = true;
+            videoPlayer.style.width = '100%';
+            videoPlayer.src = recording.data;
+            
+            // Clear event details and show video
+            const eventDetailsContent = document.getElementById('eventDetailsContent');
+            eventDetailsContent.innerHTML = '';
+            eventDetailsContent.appendChild(videoPlayer);
+            
+            // Show modal
+            eventDetailsModal.style.display = 'flex';
+        }
+        
+        // Download recording
+        function downloadRecording(id) {
+            const recordings = JSON.parse(localStorage.getItem('fallRecordings') || []);
+            const recording = recordings.find(r => r.id.toString() === id);
+            
+            if (!recording) return;
+            
+            const link = document.createElement('a');
+            link.href = recording.data;
+            link.download = `fall-detection-${new Date(recording.timestamp).toISOString()}.webm`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Send notification (simulated - in production would use email/SMS API)
+        function sendNotification() {
+            if (!config.adminEmail && !config.adminPhone) {
+                console.log("No notification recipients configured");
+                return;
+            }
+            
+            const fallTime = new Date().toLocaleString();
+            const message = `ALERT: Fall detected at ${fallTime}. Check the system for details.`;
+            
+            // In a real app, you would call your email/SMS API here
+            console.log("Sending notification:", message);
+            
+            if (config.adminEmail) {
+                console.log(`Email to: ${config.adminEmail}`);
+                // Simulate email send
+                setTimeout(() => {
+                    console.log(`Email sent to ${config.adminEmail}`);
+                }, 1000);
+            }
+            
+            if (config.adminPhone) {
+                console.log(`SMS to: ${config.adminPhone}`);
+                // Simulate SMS send
+                setTimeout(() => {
+                    console.log(`SMS sent to ${config.adminPhone}`);
+                }, 1500);
+            }
+            
+            // Show notification sent in event history
+            addNotificationEvent();
+        }
+        
+        // Add notification event to history
+        function addNotificationEvent() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            const eventItem = document.createElement('li');
+            eventItem.className = 'history-item history-item-danger';
+            
+            eventItem.innerHTML = `
+                <span class="history-time">${timeString}</span>
+                <span class="history-status status-badge-danger">Notification Sent</span>
+                <div class="history-actions">
+                    <button class="action-btn" title="View details"><i class="fas fa-info-circle"></i></button>
+                </div>
+            `;
+            
+            // Add to top of history
+            eventHistoryElement.insertBefore(eventItem, eventHistoryElement.firstChild);
+            
+            // Limit history to 20 items
+            if (eventHistoryElement.children.length > 20) {
+                eventHistoryElement.removeChild(eventHistoryElement.lastChild);
             }
         }
-
-        async function startMonitoring() {
-            await setupCamera();
-            startTime = Date.now();
-            uptimeInterval = setInterval(updateUptime, 1000);
-            requestAnimationFrame(detectPose);
+        
+        // Process pose estimation results
+        let prevLandmarks = null;
+        let prevTimestamp = null;
+        
+        async function onResults(results) {
+            if (!fallDetectionActive) return;
+            
+            // Clear canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Draw video
+            canvasCtx.drawImage(
+                results.image, 
+                0, 0, 
+                canvasElement.width, 
+                canvasElement.height
+            );
+            
+            // Draw pose landmarks if detected
+            if (results.poseLandmarks) {
+                const timestamp = Date.now();
+                
+                // Draw connections
+                window.drawConnectors(
+                    canvasCtx, 
+                    results.poseLandmarks, 
+                    window.POSE_CONNECTIONS,
+                    {color: '#00FF00', lineWidth: 4}
+                );
+                
+                // Draw landmarks
+                window.drawLandmarks(
+                    canvasCtx, 
+                    results.poseLandmarks,
+                    {color: '#FF0000', radius: 4}
+                );
+                
+                // Detect fall
+                const fallDetected = detectFall(results.poseLandmarks, prevLandmarks, timestamp, prevTimestamp);
+                
+                // Update UI based on detection
+                updateStatusUI(fallDetected);
+                
+                // Start recording if fall detected and not already recording
+                if (fallDetected && !isFallState && !isRecording) {
+                    startRecording();
+                    
+                    // Send notification
+                    sendNotification();
+                }
+                
+                // Log event if state changed
+                if (fallDetected !== isFallState) {
+                    isFallState = fallDetected;
+                    logEvent(fallDetected, results.poseLandmarks);
+                    
+                    if (fallDetected) {
+                        fallCount++;
+                        fallCountElement.textContent = fallCount;
+                        lastFallTime = new Date();
+                    }
+                }
+                
+                // Store current landmarks for next velocity calculation
+                prevLandmarks = results.poseLandmarks;
+                prevTimestamp = timestamp;
+            }
+            
+            canvasCtx.restore();
         }
-
-        function detectPose() {
-            // AI Pose detection logic here...
-            requestAnimationFrame(detectPose);
+        
+        // Update status UI
+        function updateStatusUI(fallDetected) {
+            if (fallDetected) {
+                statusCard.className = 'status-card status-danger';
+                statusCard.innerHTML = `
+                    <div class="status-icon danger-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3 class="status-title">Status: Fall Detected!</h3>
+                    <p class="status-message">Emergency protocols activated</p>
+                `;
+            } else {
+                statusCard.className = 'status-card status-safe';
+                statusCard.innerHTML = `
+                    <div class="status-icon safe-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="status-title">Status: Normal</h3>
+                    <p class="status-message">No falls detected</p>
+                `;
+            }
         }
-
-        startButton.addEventListener("click", startMonitoring);
+        
+        // Log event to history
+        function logEvent(fallDetected, landmarks) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            const angles = landmarks ? calculateAngles(landmarks) : { trunkAngle: 0, kneeAngle: 0 };
+            
+            const eventItem = document.createElement('li');
+            eventItem.className = fallDetected ? 
+                'history-item history-item-danger' : 
+                'history-item history-item-safe';
+            
+            eventItem.innerHTML = `
+                <span class="history-time">${timeString}</span>
+                <span class="history-status ${fallDetected ? 'status-badge-danger' : 'status-badge-safe'}">
+                    ${fallDetected ? 'Fall' : 'Normal'}
+                </span>
+                <div class="history-actions">
+                    <button class="action-btn" title="View details"><i class="fas fa-info-circle"></i></button>
+                </div>
+            `;
+            
+            // Add click handler for details
+            eventItem.querySelector('.action-btn').addEventListener('click', () => {
+                showEventDetails(now, fallDetected, angles);
+            });
+            
+            // Add to top of history
+            eventHistoryElement.insertBefore(eventItem, eventHistoryElement.firstChild);
+            
+            // Limit history to 20 items
+            if (eventHistoryElement.children.length > 20) {
+                eventHistoryElement.removeChild(eventHistoryElement.lastChild);
+            }
+        }
+        
+        // Show event details
+        function showEventDetails(timestamp, wasFall, angles) {
+            const timeString = timestamp.toLocaleString();
+            
+            let detailsHTML = `
+                <h4>Event Details</h4>
+                <p><strong>Time:</strong> ${timeString}</p>
+                <p><strong>Status:</strong> ${wasFall ? 'Fall Detected' : 'Normal Activity'}</p>
+                ${wasFall ? '<p class="danger-icon"><i class="fas fa-exclamation-triangle"></i> Emergency protocols were activated</p>' : ''}
+                
+                <h5 style="margin-top: 20px;">Body Angles at Event</h5>
+                <p><strong>Trunk Angle:</strong> ${angles.trunkAngle.toFixed(1)}° (Threshold: ${config.trunkAngleThreshold}°)</p>
+                <p><strong>Knee Angle:</strong> ${angles.kneeAngle.toFixed(1)}° (Threshold: ${config.kneeAngleThreshold}°)</p>
+            `;
+            
+            if (wasFall) {
+                detailsHTML += `
+                    <div style="margin-top: 20px; padding: 10px; background-color: #fff3f3; border-radius: 5px;">
+                        <h5><i class="fas fa-bell"></i> Notifications Sent</h5>
+                        ${config.adminEmail ? `<p><i class="fas fa-envelope"></i> Email sent to: ${config.adminEmail}</p>` : ''}
+                        ${config.adminPhone ? `<p><i class="fas fa-sms"></i> SMS sent to: ${config.adminPhone}</p>` : ''}
+                        ${!config.adminEmail && !config.adminPhone ? '<p>No notification recipients configured</p>' : ''}
+                    </div>
+                `;
+            }
+            
+            document.getElementById('eventDetailsContent').innerHTML = detailsHTML;
+            eventDetailsModal.style.display = 'flex';
+        }
+        
+        // Update uptime counter
+        function updateUptime() {
+            if (!startTime) return;
+            
+            const now = new Date();
+            const diff = now - startTime;
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60)).toString().padStart(2, '0');
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
+            
+            uptimeStatElement.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        
+        // Initialize fall detection
+        async function initFallDetection() {
+            try {
+                // Setup camera
+                await setupCamera();
+                
+                // Initialize angle chart
+                initAngleChart();
+                
+                // Initialize pose estimation
+                pose = new Pose({
+                    locateFile: (file) => 
+                        `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+                });
+                
+                pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    enableSegmentation: false,
+                    smoothSegmentation: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                
+                pose.onResults(onResults);
+                
+                // Start detection loop
+                startTime = new Date();
+                uptimeInterval = setInterval(updateUptime, 1000);
+                
+                async function detectPose() {
+                    if (!fallDetectionActive) return;
+                    
+                    try {
+                        await pose.send({ image: videoElement });
+                        animationFrameId = requestAnimationFrame(detectPose);
+                    } catch (error) {
+                        console.error("Error in pose detection:", error);
+                    }
+                }
+                
+                detectPose();
+            } catch (error) {
+                console.error("Initialization error:", error);
+                stopFallDetection();
+            }
+        }
+        
+        // Stop fall detection
+        function stopFallDetection() {
+            fallDetectionActive = false;
+            startButton.innerHTML = '<i class="fas fa-play"></i> Start Monitoring';
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            if (uptimeInterval) {
+                clearInterval(uptimeInterval);
+                uptimeInterval = null;
+            }
+            
+            if (pose) {
+                pose.close();
+            }
+            
+            if (videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            
+            if (isRecording && mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Reset status to safe
+            updateStatusUI(false);
+        }
+        
+        // Test notification
+        function testNotification() {
+            if (!config.adminEmail && !config.adminPhone) {
+                alert("Please configure at least one notification method (email or phone) in settings.");
+                return;
+            }
+            
+            if (confirm("Send test notification to configured recipients?")) {
+                sendNotification();
+                alert("Test notification sent to configured recipients.");
+            }
+        }
+        
+        // Event Listeners
+        startButton.addEventListener('click', async () => {
+            if (!fallDetectionActive) {
+                fallDetectionActive = true;
+                await initFallDetection();
+            } else {
+                stopFallDetection();
+            }
+        });
+        
+        settingsButton.addEventListener('click', () => {
+            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        saveSettingsBtn.addEventListener('click', () => {
+            saveSettings();
+        });
+        
+        testNotificationBtn.addEventListener('click', () => {
+            testNotification();
+        });
+        
+        testNotificationButton.addEventListener('click', () => {
+            testNotification();
+        });
+        
+        viewRecordingsBtn.addEventListener('click', () => {
+            loadRecordings();
+            recordingsModal.style.display = 'flex';
+        });
+        
+        closeModalButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                recordingsModal.style.display = 'none';
+                eventDetailsModal.style.display = 'none';
+            });
+        });
+        
+        // Close modals when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === recordingsModal) {
+                recordingsModal.style.display = 'none';
+            }
+            if (event.target === eventDetailsModal) {
+                eventDetailsModal.style.display = 'none';
+            }
+        });
+        
+        // Update range value displays when sliders change
+        trunkAngleThreshold.addEventListener('input', () => {
+            trunkAngleValue.textContent = trunkAngleThreshold.value;
+        });
+        
+        kneeAngleThreshold.addEventListener('input', () => {
+            kneeAngleValue.textContent = kneeAngleThreshold.value;
+        });
+        
+        velocityThreshold.addEventListener('input', () => {
+            velocityValue.textContent = velocityThreshold.value;
+        });
+        
+        groundProximity.addEventListener('input', () => {
+            groundProximityValue.textContent = groundProximity.value;
+        });
+        
+        // Load settings when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+        });
     </script>
 </body>
 </html>
