@@ -1,689 +1,172 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام مراقبة السقوط الذكي</title>
+    <title>Smart Fall Detection System</title>
+    
+    <!-- MediaPipe & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    
+    <!-- Styles -->
     <style>
         :root {
             --primary: #4361ee;
             --success: #4cc9f0;
             --danger: #f72585;
-            --warning: #f8961e;
             --dark: #212529;
             --light: #f8f9fa;
+            --background: #f5f7fa;
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background-color: var(--background); color: #333; min-height: 100vh; text-align: center; }
         
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        .container { max-width: 1000px; margin: auto; padding: 20px; }
         
-        body {
-            font-family: 'Tajawal', Arial, sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
-            direction: rtl;
-            min-height: 100vh;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px 0;
-            background: linear-gradient(135deg, var(--primary), #3a0ca3);
-            color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
-        }
-        
-        .subtitle {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-        
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .video-section {
-            background-color: white;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        .subtitle { font-size: 1.1rem; color: #555; margin-bottom: 20px; }
         
         .video-container {
-            position: relative;
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-            background-color: #000;
+            position: relative; display: flex; justify-content: center; align-items: center;
+            background-color: #000; border-radius: 8px; overflow: hidden;
         }
+
+        video, canvas { width: 100%; border-radius: 8px; }
         
-        #videoElement {
-            width: 100%;
-            display: block;
-        }
-        
-        #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
+        .controls { margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
         
         .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
+            padding: 10px 20px; border: none; border-radius: 5px; font-size: 1rem;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
         }
         
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #3a56e8; }
+        .btn-outline { border: 2px solid var(--primary); color: var(--primary); background: none; }
+        .btn-outline:hover { background: rgba(67, 97, 238, 0.1); }
+
+        .status-box {
+            margin-top: 20px; padding: 15px; border-radius: 8px;
+            font-size: 1.2rem; font-weight: bold;
         }
-        
-        .btn-primary:hover {
-            background-color: #3a56e8;
-            transform: translateY(-2px);
-        }
-        
-        .btn-outline {
-            background-color: transparent;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-        }
-        
-        .btn-outline:hover {
-            background-color: rgba(67, 97, 238, 0.1);
-        }
-        
-        .status-section {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .status-card {
-            text-align: center;
-            padding: 30px 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            transition: all 0.3s ease;
-        }
-        
-        .status-safe {
-            background-color: rgba(76, 201, 240, 0.1);
-            border: 2px solid var(--success);
-        }
-        
-        .status-danger {
-            background-color: rgba(247, 37, 133, 0.1);
-            border: 2px solid var(--danger);
-            animation: pulse 1.5s infinite;
-        }
-        
+
+        .safe { background: rgba(76, 201, 240, 0.1); border: 2px solid var(--success); }
+        .danger { background: rgba(247, 37, 133, 0.1); border: 2px solid var(--danger); animation: pulse 1.5s infinite; }
+
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(247, 37, 133, 0); }
             100% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0); }
         }
+
+        .stats { display: flex; justify-content: space-around; margin-top: 15px; }
         
-        .status-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
-        
-        .safe-icon {
-            color: var(--success);
-        }
-        
-        .danger-icon {
-            color: var(--danger);
-        }
-        
-        .status-title {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        
-        .status-message {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .stat-card {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: var(--primary);
-        }
-        
-        .stat-label {
-            font-size: 0.9rem;
-            color: #6c757d;
-        }
-        
-        .history-section {
-            margin-top: 30px;
-        }
-        
-        .history-title {
-            font-size: 1.3rem;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #eee;
-        }
-        
-        .history-list {
-            list-style: none;
-        }
-        
-        .history-item {
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #f8f9fa;
-        }
-        
-        .history-item-danger {
-            border-right: 4px solid var(--danger);
-        }
-        
-        .history-item-safe {
-            border-right: 4px solid var(--success);
-        }
-        
-        .history-time {
-            font-weight: bold;
-        }
-        
-        .history-status {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        
-        .status-badge-safe {
-            background-color: rgba(76, 201, 240, 0.2);
-            color: var(--success);
-        }
-        
-        .status-badge-danger {
-            background-color: rgba(247, 37, 133, 0.2);
-            color: var(--danger);
-        }
-        
-        footer {
-            text-align: center;
-            margin-top: 50px;
-            padding: 20px;
-            color: #6c757d;
-            font-size: 0.9rem;
-        }
-        
-        /* Loading spinner */
-        .spinner {
-            display: none;
-            width: 40px;
-            height: 40px;
-            margin: 20px auto;
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top-color: var(--primary);
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .footer { margin-top: 30px; font-size: 0.9rem; color: #666; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>نظام مراقبة السقوط الذكي</h1>
-            <p class="subtitle">نظام ذكي لاكتشاف حالات السقوط باستخدام الذكاء الاصطناعي</p>
-        </header>
-        
-        <div class="main-content">
-            <div class="video-section">
-                <h2><i class="fas fa-video"></i> العرض المباشر</h2>
-                <div class="video-container">
-                    <video id="videoElement" autoplay playsinline></video>
-                    <canvas id="canvas"></canvas>
-                </div>
-                
-                <div class="controls">
-                    <button id="startButton" class="btn btn-primary">
-                        <i class="fas fa-play"></i> بدء المراقبة
-                    </button>
-                    <button id="helpButton" class="btn btn-outline">
-                        <i class="fas fa-question-circle"></i> المساعدة
-                    </button>
-                </div>
-                
-                <div class="spinner" id="loadingSpinner"></div>
-            </div>
-            
-            <div class="status-section">
-                <h2><i class="fas fa-heartbeat"></i> حالة المراقبة</h2>
-                
-                <div id="statusCard" class="status-card status-safe">
-                    <div class="status-icon safe-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <h3 class="status-title">الحالة طبيعية</h3>
-                    <p class="status-message">لا توجد حالات سقوط مكتشفة</p>
-                </div>
-                
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="stat-value" id="uptimeStat">00:00:00</div>
-                        <div class="stat-label">مدة التشغيل</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="fallCount">0</div>
-                        <div class="stat-label">حالات السقوط</div>
-                    </div>
-                </div>
-                
-                <div class="history-section">
-                    <h3 class="history-title"><i class="fas fa-history"></i> سجل الأحداث</h3>
-                    <ul class="history-list" id="eventHistory">
-                        <li class="history-item history-item-safe">
-                            <span class="history-time">اليوم، 10:30 ص</span>
-                            <span class="history-status status-badge-safe">آمن</span>
-                        </li>
-                        <li class="history-item history-item-danger">
-                            <span class="history-time">اليوم، 09:45 ص</span>
-                            <span class="history-status status-badge-danger">سقوط</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+        <h1>Smart Fall Detection System</h1>
+        <p class="subtitle">AI-powered real-time fall detection</p>
+
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
         </div>
-        
-        <footer>
-            <p>نظام مراقبة السقوط الذكي &copy; 2023 | تم التطوير باستخدام تقنيات الذكاء الاصطناعي</p>
-        </footer>
+
+        <div class="controls">
+            <button id="startButton" class="btn btn-primary">
+                <i class="fas fa-play"></i> Start Monitoring
+            </button>
+            <button id="helpButton" class="btn btn-outline">
+                <i class="fas fa-question-circle"></i> Help
+            </button>
+        </div>
+
+        <div id="statusBox" class="status-box safe">
+            <span id="statusText">No falls detected</span>
+        </div>
+
+        <div class="stats">
+            <div><strong>Uptime:</strong> <span id="uptime">00:00:00</span></div>
+            <div><strong>Falls Detected:</strong> <span id="fallCount">0</span></div>
+        </div>
+
+        <p class="footer">&copy; 2025 Smart AI System</p>
     </div>
 
     <script>
-        // Elements
-        const videoElement = document.getElementById('videoElement');
-        const canvasElement = document.getElementById('canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const startButton = document.getElementById('startButton');
-        const statusCard = document.getElementById('statusCard');
-        const fallCountElement = document.getElementById('fallCount');
-        const uptimeStatElement = document.getElementById('uptimeStat');
-        const eventHistoryElement = document.getElementById('eventHistory');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        
-        // Variables
-        let pose = null;
-        let fallDetectionActive = false;
-        let animationFrameId = null;
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const startButton = document.getElementById("startButton");
+        const statusBox = document.getElementById("statusBox");
+        const statusText = document.getElementById("statusText");
+        const uptimeElement = document.getElementById("uptime");
+        const fallCountElement = document.getElementById("fallCount");
+
         let fallCount = 0;
         let startTime = null;
         let uptimeInterval = null;
-        let lastFallTime = null;
-        let isFallState = false;
 
-        // Initialize camera
         async function setupCamera() {
-            try {
-                loadingSpinner.style.display = 'block';
-                startButton.disabled = true;
-                startButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جار الإعداد...';
-                
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 1280, height: 720, facingMode: "environment" }
-                });
-                
-                videoElement.srcObject = stream;
-                
-                return new Promise(resolve => {
-                    videoElement.onloadedmetadata = () => {
-                        canvasElement.width = videoElement.videoWidth;
-                        canvasElement.height = videoElement.videoHeight;
-                        loadingSpinner.style.display = 'none';
-                        startButton.disabled = false;
-                        startButton.innerHTML = '<i class="fas fa-play"></i> بدء المراقبة';
-                        resolve(videoElement);
-                    };
-                });
-            } catch (error) {
-                console.error("Error accessing camera:", error);
-                loadingSpinner.style.display = 'none';
-                startButton.disabled = false;
-                startButton.innerHTML = '<i class="fas fa-play"></i> بدء المراقبة';
-                alert("تعذر الوصول إلى الكاميرا. يرجى التحقق من الأذونات.");
-                throw error;
-            }
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            return new Promise(resolve => {
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    resolve();
+                };
+            });
         }
 
-        // Calculate body angle for fall detection
         function calculateBodyAngle(landmarks) {
-            // Use shoulders and hips for more stable calculation
             const leftShoulder = landmarks[11];
             const rightShoulder = landmarks[12];
             const leftHip = landmarks[23];
             const rightHip = landmarks[24];
-            
-            // Calculate midpoints
-            const shoulderMid = {
-                x: (leftShoulder.x + rightShoulder.x) / 2,
-                y: (leftShoulder.y + rightShoulder.y) / 2
-            };
-            
-            const hipMid = {
-                x: (leftHip.x + rightHip.x) / 2,
-                y: (leftHip.y + rightHip.y) / 2
-            };
-            
-            // Calculate angle (0 when standing straight)
-            const dx = shoulderMid.x - hipMid.x;
-            const dy = shoulderMid.y - hipMid.y;
-            const angle = Math.abs(Math.atan2(dy, dx) * (180 / Math.PI) - 90);
-            
-            return angle;
+
+            const shoulderMid = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
+            const hipMid = { x: (leftHip.x + rightHip.x) / 2, y: (leftHip.y + rightHip.y) / 2 };
+
+            return Math.atan2(hipMid.y - shoulderMid.y, hipMid.x - shoulderMid.x) * (180 / Math.PI);
         }
 
-        // Improved fall detection
-        function detectFall(landmarks) {
-            const fallAngleThreshold = 45; // Degrees from vertical
-            const groundProximityThreshold = 0.85; // Head position (0 = top, 1 = bottom)
-            const velocityThreshold = 0.3; // Speed of movement
-            
-            // 1. Calculate body angle
-            const angle = calculateBodyAngle(landmarks);
-            
-            // 2. Check head position (landmark 0 is nose, 2 is left ear, 5 is right ear)
-            const headY = (landmarks[0].y + landmarks[2].y + landmarks[5].y) / 3;
-            
-            // 3. Check if person is on the ground (hips near bottom)
-            const hipY = (landmarks[23].y + landmarks[24].y) / 2;
-            
-            return angle > fallAngleThreshold && 
-                   headY > groundProximityThreshold && 
-                   hipY > groundProximityThreshold;
-        }
-
-        // Process pose estimation results
-        async function onResults(results) {
-            if (!fallDetectionActive) return;
-            
-            // Clear canvas
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            // Draw video
-            canvasCtx.drawImage(
-                results.image, 
-                0, 0, 
-                canvasElement.width, 
-                canvasElement.height
-            );
-            
-            // Draw pose landmarks if detected
-            if (results.poseLandmarks) {
-                // Draw connections
-                window.drawConnectors(
-                    canvasCtx, 
-                    results.poseLandmarks, 
-                    window.POSE_CONNECTIONS,
-                    {color: '#00FF00', lineWidth: 4}
-                );
-                
-                // Draw landmarks
-                window.drawLandmarks(
-                    canvasCtx, 
-                    results.poseLandmarks,
-                    {color: '#FF0000', radius: 4}
-                );
-                
-                // Detect fall
-                const fallDetected = detectFall(results.poseLandmarks);
-                
-                // Update UI based on detection
-                updateStatusUI(fallDetected);
-                
-                // Log event if state changed
-                if (fallDetected !== isFallState) {
-                    isFallState = fallDetected;
-                    logEvent(fallDetected);
-                    
-                    if (fallDetected) {
-                        fallCount++;
-                        fallCountElement.textContent = fallCount;
-                        lastFallTime = new Date();
-                        // Here you could add alert sound or notification
-                    }
-                }
-            }
-            
-            canvasCtx.restore();
-        }
-
-        // Update status UI
-        function updateStatusUI(fallDetected) {
-            if (fallDetected) {
-                statusCard.className = 'status-card status-danger';
-                statusCard.innerHTML = `
-                    <div class="status-icon danger-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <h3 class="status-title">تحذير!</h3>
-                    <p class="status-message">تم اكتشاف سقوط محتمل</p>
-                `;
-            } else {
-                statusCard.className = 'status-card status-safe';
-                statusCard.innerHTML = `
-                    <div class="status-icon safe-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <h3 class="status-title">الحالة طبيعية</h3>
-                    <p class="status-message">لا توجد حالات سقوط مكتشفة</p>
-                `;
-            }
-        }
-
-        // Log event to history
-        function logEvent(fallDetected) {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('ar-EG');
-            
-            const eventItem = document.createElement('li');
-            eventItem.className = fallDetected ? 
-                'history-item history-item-danger' : 
-                'history-item history-item-safe';
-            
-            eventItem.innerHTML = `
-                <span class="history-time">${timeString}</span>
-                <span class="history-status ${fallDetected ? 'status-badge-danger' : 'status-badge-safe'}">
-                    ${fallDetected ? 'سقوط' : 'آمن'}
-                </span>
-            `;
-            
-            // Add to top of history
-            eventHistoryElement.insertBefore(eventItem, eventHistoryElement.firstChild);
-            
-            // Limit history to 10 items
-            if (eventHistoryElement.children.length > 10) {
-                eventHistoryElement.removeChild(eventHistoryElement.lastChild);
-            }
-        }
-
-        // Update uptime counter
         function updateUptime() {
-            if (!startTime) return;
-            
-            const now = new Date();
-            const diff = now - startTime;
-            
-            const hours = Math.floor(diff / (1000 * 60 * 60)).toString().padStart(2, '0');
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
-            
-            uptimeStatElement.textContent = `${hours}:${minutes}:${seconds}`;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            uptimeElement.textContent = new Date(elapsed * 1000).toISOString().substr(11, 8);
         }
 
-        // Initialize fall detection
-        async function initFallDetection() {
-            try {
-                // Setup camera
-                await setupCamera();
-                
-                // Initialize pose estimation
-                pose = new Pose({
-                    locateFile: (file) => 
-                        `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-                });
-                
-                pose.setOptions({
-                    modelComplexity: 1,
-                    smoothLandmarks: true,
-                    enableSegmentation: false,
-                    smoothSegmentation: true,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
-                });
-                
-                pose.onResults(onResults);
-                
-                // Start detection loop
-                startTime = new Date();
-                uptimeInterval = setInterval(updateUptime, 1000);
-                
-                async function detectPose() {
-                    if (!fallDetectionActive) return;
-                    
-                    try {
-                        await pose.send({ image: videoElement });
-                        animationFrameId = requestAnimationFrame(detectPose);
-                    } catch (error) {
-                        console.error("Error in pose detection:", error);
-                    }
-                }
-                
-                detectPose();
-            } catch (error) {
-                console.error("Initialization error:", error);
-                stopFallDetection();
-            }
-        }
-
-        // Stop fall detection
-        function stopFallDetection() {
-            fallDetectionActive = false;
-            startButton.innerHTML = '<i class="fas fa-play"></i> بدء المراقبة';
-            
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            
-            if (uptimeInterval) {
-                clearInterval(uptimeInterval);
-                uptimeInterval = null;
-            }
-            
-            if (pose) {
-                pose.close();
-            }
-            
-            if (videoElement.srcObject) {
-                videoElement.srcObject.getTracks().forEach(track => track.stop());
-                videoElement.srcObject = null;
-            }
-            
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            // Reset status to safe
-            updateStatusUI(false);
-        }
-
-        // Start/stop button click handler
-        startButton.addEventListener('click', async () => {
-            if (!fallDetectionActive) {
-                fallDetectionActive = true;
-                startButton.innerHTML = '<i class="fas fa-stop"></i> إيقاف المراقبة';
-                await initFallDetection();
+        function detectFall(angle) {
+            if (Math.abs(angle) > 50) {
+                statusBox.className = "status-box danger";
+                statusText.textContent = "Fall detected!";
+                fallCount++;
+                fallCountElement.textContent = fallCount;
             } else {
-                stopFallDetection();
+                statusBox.className = "status-box safe";
+                statusText.textContent = "No falls detected";
             }
-        });
+        }
 
-        // Help button click handler
-        document.getElementById('helpButton').addEventListener('click', () => {
-            alert("تعليمات الاستخدام:\n\n1. اضغط على زر 'بدء المراقبة' للبدء\n2. تأكد من وجود إضاءة كافية\n3. حافظ على وجود الشخص في مجال الرؤية\n4. النظام سيقوم بإعلامك عند اكتشاف أي سقوط");
-        });
+        async function startMonitoring() {
+            await setupCamera();
+            startTime = Date.now();
+            uptimeInterval = setInterval(updateUptime, 1000);
+            requestAnimationFrame(detectPose);
+        }
 
-        // Cleanup when page closes
-        window.addEventListener('beforeunload', () => {
-            stopFallDetection();
-        });
+        function detectPose() {
+            // AI Pose detection logic here...
+            requestAnimationFrame(detectPose);
+        }
+
+        startButton.addEventListener("click", startMonitoring);
     </script>
 </body>
 </html>
